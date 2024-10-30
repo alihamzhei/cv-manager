@@ -3,11 +3,21 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"github.com/alihamzhei/internal/rest/middleware"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/joho/godotenv"
+	"github.com/labstack/echo/v4"
 	"log"
+	"net/http"
 	"net/url"
 	"os"
+	"strconv"
+	"time"
+)
+
+const (
+	defaultTimeout = 30
+	defaultAddress = ":9090"
 )
 
 func init() {
@@ -44,4 +54,26 @@ func main() {
 		}
 	}()
 
+	e := echo.New()
+	e.Use(middleware.CORS)
+
+	timeoutStr := os.Getenv("CONTEXT_TIMEOUT")
+	timeout, err := strconv.Atoi(timeoutStr)
+
+	if err != nil {
+		log.Println("failed to parse timeout, using default timeout")
+		timeout = defaultTimeout
+	}
+	timeoutContext := time.Duration(timeout) * time.Second
+	e.Use(middleware.SetRequestContextWithTimeout(timeoutContext))
+
+	e.GET("/", func(c echo.Context) error {
+		return c.JSON(http.StatusOK, map[string]string{"message": "Hello World!!!"})
+	})
+
+	address := os.Getenv("SERVER_ADDRESS")
+	if address == "" {
+		address = defaultAddress
+	}
+	log.Fatal(e.Start(address)) //nolint
 }
